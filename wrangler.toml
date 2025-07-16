@@ -18,7 +18,7 @@ bucket_name = 'rss-data'
 GITHUB_CLIENT_ID = "Ov23liaiwXf57O8WFXew"
 GITHUB_CLIENT_SECRET = "8e0d6e9113059e4ecf4b9cd23b43f04796bad9a8"
 ALLOWED_GITHUB_USERS = "HeLongaa"
-APP_URL = "https://rss-api.040720.xyz/"
+APP_URL = "https://rss-api.040720.xyz"
 
 # 静态资源配置
 [site]

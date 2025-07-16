@@ -8,7 +8,7 @@ const app = new Hono<HonoEnv>();
 
 // 添加CORS中间件，允许所有域名访问
 app.use('*', cors({
-    origin: '*', // 允许所有域名访问
+    origin: ['https://rss-api.040720.xyz', 'https://rss-cloudflare.1946815225.workers.dev', 'http://localhost:4321', 'https://blog.helong.online'],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'Cookie'],
     exposeHeaders: ['Content-Length', 'Set-Cookie'],
