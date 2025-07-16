@@ -10570,9 +10570,90 @@ var module = /* @__PURE__ */ __name((options = { root: "" }) => {
   return serveStatic(options);
 }, "module");
 
+// node_modules/hono/dist/middleware/cors/index.js
+init_virtual_unenv_global_polyfill_cloudflare_unenv_preset_node_process();
+init_virtual_unenv_global_polyfill_cloudflare_unenv_preset_node_console();
+init_performance2();
+var cors = /* @__PURE__ */ __name((options) => {
+  const defaults = {
+    origin: "*",
+    allowMethods: ["GET", "HEAD", "PUT", "POST", "DELETE", "PATCH"],
+    allowHeaders: [],
+    exposeHeaders: []
+  };
+  const opts = {
+    ...defaults,
+    ...options
+  };
+  const findAllowOrigin = ((optsOrigin) => {
+    if (typeof optsOrigin === "string") {
+      return () => optsOrigin;
+    } else if (typeof optsOrigin === "function") {
+      return optsOrigin;
+    } else {
+      return (origin) => optsOrigin.includes(origin) ? origin : optsOrigin[0];
+    }
+  })(opts.origin);
+  return /* @__PURE__ */ __name(async function cors2(c, next) {
+    function set(key, value) {
+      c.res.headers.set(key, value);
+    }
+    __name(set, "set");
+    const allowOrigin = findAllowOrigin(c.req.header("origin") || "");
+    if (allowOrigin) {
+      set("Access-Control-Allow-Origin", allowOrigin);
+    }
+    if (opts.origin !== "*") {
+      set("Vary", "Origin");
+    }
+    if (opts.credentials) {
+      set("Access-Control-Allow-Credentials", "true");
+    }
+    if (opts.exposeHeaders?.length) {
+      set("Access-Control-Expose-Headers", opts.exposeHeaders.join(","));
+    }
+    if (c.req.method === "OPTIONS") {
+      if (opts.maxAge != null) {
+        set("Access-Control-Max-Age", opts.maxAge.toString());
+      }
+      if (opts.allowMethods?.length) {
+        set("Access-Control-Allow-Methods", opts.allowMethods.join(","));
+      }
+      let headers = opts.allowHeaders;
+      if (!headers?.length) {
+        const requestHeaders = c.req.header("Access-Control-Request-Headers");
+        if (requestHeaders) {
+          headers = requestHeaders.split(/\s*,\s*/);
+        }
+      }
+      if (headers?.length) {
+        set("Access-Control-Allow-Headers", headers.join(","));
+        c.res.headers.append("Vary", "Access-Control-Request-Headers");
+      }
+      c.res.headers.delete("Content-Length");
+      c.res.headers.delete("Content-Type");
+      return new Response(null, {
+        headers: c.res.headers,
+        status: 204,
+        statusText: c.res.statusText
+      });
+    }
+    await next();
+  }, "cors2");
+}, "cors");
+
 // src/index.ts
 var import_rss_parser = __toESM(require_rss_parser());
 var app = new Hono2();
+app.use("*", cors({
+  origin: "*",
+  // 允许所有域名访问
+  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization", "Cookie"],
+  exposeHeaders: ["Content-Length", "Set-Cookie"],
+  maxAge: 86400,
+  credentials: true
+}));
 var parser = new import_rss_parser.default();
 function sanitizeContent(content) {
   const withoutTags = content.replace(/<[^>]*>/g, "");
@@ -10589,17 +10670,17 @@ var authMiddleware = /* @__PURE__ */ __name(async (c, next) => {
       }
     });
     if (!userResponse.ok) {
-      return c.redirect("/login");
+      return c.json({ error: "Unauthorized", message: "Please login first" }, 401);
     }
     const user = await userResponse.json();
     const allowedUsers = c.env.ALLOWED_GITHUB_USERS.split(",");
     if (!allowedUsers.includes(user.login)) {
-      return c.redirect("/login?error=unauthorized");
+      return c.json({ error: "Forbidden", message: "User not allowed" }, 403);
     }
     return next();
   } catch (error3) {
     console.error("Auth check failed:", error3);
-    return c.redirect("/login");
+    return c.json({ error: "Authentication failed", message: "Please login first" }, 401);
   }
 }, "authMiddleware");
 app.get("/login", module({ path: "./login.html" }));
@@ -10717,6 +10798,26 @@ async function validateRSSFeed(url) {
   }
 }
 __name(validateRSSFeed, "validateRSSFeed");
+app.get("/api/rss/public", async (c) => {
+  try {
+    const cachedData = await c.env.RSS_BUCKET.get("rss.json");
+    if (cachedData) {
+      const data = await cachedData.json();
+      const sortedData = data.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      const limitedData = sortedData.map((item) => ({
+        ...item,
+        content: item.content.slice(0, 100)
+      }));
+      return c.json(limitedData);
+    }
+    return c.json([], 200);
+  } catch (error3) {
+    console.error("RSS fetch error:", error3);
+    return c.json({ error: "Failed to fetch RSS feeds" }, 500);
+  }
+});
 app.get("/api/rss", authMiddleware, async (c) => {
   try {
     const cachedData = await c.env.RSS_BUCKET.get("rss.json");
@@ -10763,7 +10864,7 @@ app.get("/api/rss", authMiddleware, async (c) => {
     return c.json(items);
   } catch (error3) {
     console.error("RSS fetch error:", error3);
-    return c.text("Error fetching RSS feeds", 500);
+    return c.json({ error: "Failed to fetch RSS feeds" }, 500);
   }
 });
 app.delete("/api/feeds/:url", authMiddleware, async (c) => {

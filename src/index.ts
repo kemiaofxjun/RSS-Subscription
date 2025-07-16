@@ -1,9 +1,21 @@
 import { Hono } from 'hono';
 import { serveStatic } from 'hono/cloudflare-workers';
+import { cors } from 'hono/cors';
 import Parser from 'rss-parser';
 import { RSSFeed, RSSItem, HonoEnv, AppContext, GitHubUser, GitHubTokenResponse } from './types';
 
 const app = new Hono<HonoEnv>();
+
+// 添加CORS中间件，允许所有域名访问
+app.use('*', cors({
+    origin: '*', // 允许所有域名访问
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    exposeHeaders: ['Content-Length', 'Set-Cookie'],
+    maxAge: 86400,
+    credentials: true,
+}));
+
 const parser = new Parser();
 
 // Helper function to sanitize HTML content
@@ -35,20 +47,20 @@ const authMiddleware = async (c: AppContext, next: Function) => {
         });
 
         if (!userResponse.ok) {
-            return c.redirect('/login');
+            return c.json({ error: 'Unauthorized', message: 'Please login first' }, 401);
         }
 
         const user: GitHubUser = await userResponse.json();
         const allowedUsers = c.env.ALLOWED_GITHUB_USERS.split(',');
 
         if (!allowedUsers.includes(user.login)) {
-            return c.redirect('/login?error=unauthorized');
+            return c.json({ error: 'Forbidden', message: 'User not allowed' }, 403);
         }
 
         return next();
     } catch (error) {
         console.error('Auth check failed:', error);
-        return c.redirect('/login');
+        return c.json({ error: 'Authentication failed', message: 'Please login first' }, 401);
     }
 };
 
@@ -203,7 +215,33 @@ async function validateRSSFeed(url: string) {
     }
 }
 
-// 获取RSS内容
+// 获取RSS内容的公开API（无需认证）
+app.get('/api/rss/public', async (c: AppContext) => {
+    try {
+        // 尝试从R2获取缓存的RSS数据
+        const cachedData = await c.env.RSS_BUCKET.get('rss.json');
+        if (cachedData) {
+            const data: RSSItem[] = await cachedData.json();
+            // 按时间从新到旧排序
+            const sortedData = data.sort((a: RSSItem, b: RSSItem) =>
+                new Date(b.date).getTime() - new Date(a.date).getTime()
+            );
+            // 确保返回的数据也遵循100字限制
+            const limitedData = sortedData.map((item: RSSItem) => ({
+                ...item,
+                content: item.content.slice(0, 100)
+            }));
+            return c.json(limitedData);
+        }
+
+        return c.json([], 200);
+    } catch (error) {
+        console.error('RSS fetch error:', error);
+        return c.json({ error: 'Failed to fetch RSS feeds' }, 500);
+    }
+});
+
+// 原有的需要认证的RSS API
 app.get('/api/rss', authMiddleware, async (c: AppContext) => {
     try {
         // 尝试从R2获取缓存的RSS数据
@@ -269,7 +307,7 @@ app.get('/api/rss', authMiddleware, async (c: AppContext) => {
         return c.json(items);
     } catch (error) {
         console.error('RSS fetch error:', error);
-        return c.text('Error fetching RSS feeds', 500);
+        return c.json({ error: 'Failed to fetch RSS feeds' }, 500);
     }
 });
 

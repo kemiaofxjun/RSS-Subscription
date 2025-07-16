@@ -62,7 +62,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background-color: var(--background-color);
             color: var(--text-primary);
             line-height: 1.5;
@@ -348,9 +348,21 @@
             box-shadow: var(--shadow);
         }
 
+        .rss-item p {
+            color: var(--text-secondary);
+            margin: 0 0 1rem 0;
+            line-height: 1.8;
+            font-size: 1rem;
+            text-align: justify;
+            word-break: break-word;
+            font-weight: 400;
+        }
+
         .rss-item h3 {
             margin: 0 0 0.75rem 0;
-            font-size: 1.125rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+            line-height: 1.4;
         }
 
         .rss-item h3 a {
@@ -361,12 +373,6 @@
 
         .rss-item h3 a:hover {
             color: var(--primary-hover);
-        }
-
-        .rss-item p {
-            color: var(--text-secondary);
-            margin: 0 0 1rem 0;
-            line-height: 1.6;
         }
 
         .rss-item .meta {
@@ -833,10 +839,14 @@
     </div>
 
     <script>
+        const API_BASE_URL = 'https://rss-cloudflare.1946815225.workers.dev';
+
         // 获取用户信息
         async function getUserInfo() {
             try {
-                const response = await fetch('/api/user');
+                const response = await fetch(`${API_BASE_URL}/api/user`, {
+                    credentials: 'include'
+                });
                 if (response.ok) {
                     const user = await response.json();
                     document.getElementById('userAvatar').src = user.avatar_url;
@@ -845,16 +855,6 @@
             } catch (error) {
                 console.error('Failed to get user info:', error);
             }
-        }
-
-        function showMessage(message, type = 'error') {
-            const messageBox = document.getElementById('messageBox');
-            messageBox.textContent = message;
-            messageBox.className = type;
-            messageBox.style.display = 'block';
-            setTimeout(() => {
-                messageBox.style.display = 'none';
-            }, 5000);
         }
 
         // 分页相关变量
@@ -870,7 +870,9 @@
         // 加载订阅源列表
         async function loadFeeds() {
             try {
-                const response = await fetch('/api/feeds');
+                const response = await fetch(`${API_BASE_URL}/api/feeds`, {
+                    credentials: 'include'
+                });
                 if (response.ok) {
                     totalFeeds = await response.json();
                     updatePagination();
@@ -935,8 +937,9 @@
         // 删除订阅源后的处理
         async function deleteFeed(encodedUrl) {
             try {
-                const response = await fetch(`/api/feeds/${encodedUrl}`, {
+                const response = await fetch(`${API_BASE_URL}/api/feeds/${encodedUrl}`, {
                     method: 'DELETE',
+                    credentials: 'include'
                 });
 
                 if (response.ok) {
@@ -973,8 +976,9 @@
 
             try {
                 addButton.disabled = true;
-                const response = await fetch('/api/feeds', {
+                const response = await fetch(`${API_BASE_URL}/api/feeds`, {
                     method: 'POST',
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -1011,19 +1015,28 @@
             contentDiv.innerHTML = '<div class="loading">加载中...</div>';
 
             try {
-                const response = await fetch('/api/rss');
-                if (response.ok) {
-                    totalRssItems = await response.json();
+                // 尝试使用公开API
+                const response = await fetch(`${API_BASE_URL}/api/rss/public`);
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || '加载RSS内容失败');
+                }
+
+                const data = await response.json();
+                if (Array.isArray(data)) {
+                    totalRssItems = data;
                     // 按时间从新到旧排序
                     totalRssItems.sort((a, b) => new Date(b.date) - new Date(a.date));
                     updateRssPagination();
                     displayRssContent();
                 } else {
-                    contentDiv.innerHTML = '<div class="error">加载RSS内容失败</div>';
+                    throw new Error('返回数据格式错误');
                 }
             } catch (error) {
                 console.error('Failed to load RSS content:', error);
-                contentDiv.innerHTML = '<div class="error">加载RSS内容失败</div>';
+                contentDiv.innerHTML = `<div class="error">加载RSS内容失败: ${error.message}</div>`;
+                showMessage(error.message || '加载RSS内容失败');
             }
         }
 
@@ -1117,8 +1130,9 @@
                 refreshBtn.disabled = true;
                 refreshIcon.classList.add('spin');
 
-                const response = await fetch('/api/rss/refresh', {
-                    method: 'POST'
+                const response = await fetch(`${API_BASE_URL}/api/rss/refresh`, {
+                    method: 'POST',
+                    credentials: 'include'
                 });
 
                 if (response.ok) {
