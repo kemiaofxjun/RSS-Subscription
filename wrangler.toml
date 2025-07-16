@@ -17,4 +17,9 @@ bucket_name = 'rss-data'
 [vars]
 GITHUB_CLIENT_ID = "Ov23liaiwXf57O8WFXew"
 GITHUB_CLIENT_SECRET = "8e0d6e9113059e4ecf4b9cd23b43f04796bad9a8"
-ALLOWED_GITHUB_USERS = "HeLongaa" 
+ALLOWED_GITHUB_USERS = "HeLongaa"
+APP_URL = "https://rss-cloudflare.1946815225.workers.dev"
+
+# 静态资源配置
+[site]
+bucket = "./public" 

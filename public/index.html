@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSS订阅服务</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --danger-color: #dc2626;
+            --danger-hover: #b91c1c;
+            --success-color: #16a34a;
+            --success-hover: #15803d;
+            --info-color: #0891b2;
+            --info-hover: #0e7490;
+            --background-color: #f8fafc;
+            --card-background: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --radius: 0.75rem;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* 强制显示滚动条，防止布局抖动 */
+        html {
+            overflow-y: scroll;
+        }
+
+        /* 自定义滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--background-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        @supports (scrollbar-gutter: stable) {
+            html {
+                scrollbar-gutter: stable;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .header {
+            background-color: var(--card-background);
+            padding: 1rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        @media (max-width: 640px) {
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .header-left,
+            .header-right {
+                justify-content: space-between;
+            }
+
+            h1 {
+                font-size: 1.25rem;
+            }
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            background-color: var(--background-color);
+            border-radius: var(--radius);
+        }
+
+        .user-avatar {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .user-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: var(--radius);
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+            color: white;
+        }
+
+        button svg {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background-color: var(--primary-color);
+        }
+
+        button.primary:hover:not(:disabled) {
+            background-color: var(--primary-hover);
+        }
+
+        button.danger {
+            background-color: var(--danger-color);
+        }
+
+        button.danger:hover:not(:disabled) {
+            background-color: var(--danger-hover);
+        }
+
+        button.success {
+            background-color: var(--success-color);
+        }
+
+        button.success:hover:not(:disabled) {
+            background-color: var(--success-hover);
+        }
+
+        button.info {
+            background-color: var(--info-color);
+        }
+
+        button.info:hover:not(:disabled) {
+            background-color: var(--info-hover);
+        }
+
+        .feed-form {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .feed-form {
+                flex-direction: column;
+            }
+        }
+
+        input[type="url"] {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            transition: border-color 0.2s ease;
+        }
+
+        input[type="url"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .section {
+            background-color: var(--card-background);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .collapsible {
+            padding: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .collapsible:hover {
+            background-color: var(--background-color);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 1.25rem;
+            margin: 0;
+        }
+
+        .toggle-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            transition: transform 0.2s ease;
+        }
+
+        .collapsible.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            padding: 1rem;
+            opacity: 1;
+            transform-origin: top;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .collapsible-content.collapsed {
+            padding: 0 1rem;
+            opacity: 0;
+            transform: scaleY(0);
+            pointer-events: none;
+        }
+
+        /* 确保内容区域在折叠时不占用空间 */
+        .section.collapsed .collapsible-content {
+            display: none;
+        }
+
+        .feed-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            margin-bottom: 0.75rem;
+            background-color: var(--card-background);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .feed-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .feed-item .feed-url {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-right: 1rem;
+            color: var(--text-primary);
+        }
+
+        .feed-item button {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .feed-item button svg {
+            width: 1rem;
+            height: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .feed-item {
+                flex-direction: column;
+                gap: 0.75rem;
+                align-items: stretch;
+            }
+
+            .feed-item .feed-url {
+                margin-right: 0;
+            }
+
+            .feed-item button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .rss-item {
+            padding: 1.25rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
+            background-color: var(--card-background);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .rss-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .rss-item h3 {
+            margin: 0 0 0.75rem 0;
+            font-size: 1.125rem;
+        }
+
+        .rss-item h3 a {
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .rss-item h3 a:hover {
+            color: var(--primary-hover);
+        }
+
+        .rss-item p {
+            color: var(--text-secondary);
+            margin: 0 0 1rem 0;
+            line-height: 1.6;
+        }
+
+        .rss-item .meta {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        #messageBox {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 1rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            max-width: 300px;
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        #messageBox.error {
+            background-color: #fef2f2;
+            border: 1px solid #fee2e2;
+            color: var(--danger-color);
+        }
+
+        #messageBox.success {
+            background-color: #f0fdf4;
+            border: 1px solid #dcfce7;
+            color: var(--success-color);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            padding: 1rem;
+        }
+
+        .modal-content {
+            position: relative;
+            background-color: var(--card-background);
+            margin: 2rem auto;
+            padding: 2rem;
+            width: 100%;
+            max-width: 800px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            max-height: calc(100vh - 4rem);
+            overflow-y: auto;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: color 0.2s ease;
+        }
+
+        .close-modal:hover {
+            color: var(--text-primary);
+        }
+
+        .api-doc {
+            margin-top: 1.5rem;
+        }
+
+        .api-endpoint {
+            margin-bottom: 1.5rem;
+            padding: 1.25rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            background-color: var(--background-color);
+        }
+
+        .api-endpoint h3 {
+            margin: 0 0 1rem 0;
+            color: var(--text-primary);
+        }
+
+        .api-endpoint .method {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-right: 0.75rem;
+        }
+
+        .api-endpoint .method.get {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .api-endpoint .method.post {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .api-endpoint .method.delete {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .api-endpoint .path {
+            font-family: monospace;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            background-color: var(--card-background);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+        }
+
+        .api-endpoint pre {
+            background-color: var(--card-background);
+            padding: 1rem;
+            border-radius: var(--radius);
+            overflow-x: auto;
+            margin: 0.75rem 0;
+            font-size: 0.875rem;
+            border: 1px solid var(--border-color);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background-color: #0f172a;
+                --card-background: #1e293b;
+                --text-primary: #f8fafc;
+                --text-secondary: #94a3b8;
+                --border-color: #334155;
+            }
+
+            .api-endpoint {
+                background-color: #1e293b;
+            }
+
+            .api-endpoint pre {
+                background-color: #0f172a;
+            }
+
+            #messageBox.error {
+                background-color: #450a0a;
+                border-color: #991b1b;
+            }
+
+            #messageBox.success {
+                background-color: #052e16;
+                border-color: #166534;
+            }
+
+            .api-endpoint .method.get {
+                background-color: #1e3a8a;
+                color: #bfdbfe;
+            }
+
+            .api-endpoint .method.post {
+                background-color: #166534;
+                color: #bbf7d0;
+            }
+
+            .api-endpoint .method.delete {
+                background-color: #991b1b;
+                color: #fecaca;
+            }
+        }
+
+        .feed-section {
+            background-color: var(--card-background);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+        }
+
+        .feed-section h2 {
+            margin: 0 0 1rem 0;
+            font-size: 1.25rem;
+            color: var(--text-primary);
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .pagination button {
+            padding: 0.5rem 0.75rem;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination .page-info {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* 返回顶部按钮样式 */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: var(--primary-color);
+            color: white;
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .back-to-top:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-3px);
+        }
+
+        .back-to-top svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        @media (max-width: 640px) {
+            .back-to-top {
+                bottom: 1rem;
+                right: 1rem;
+                width: 2.5rem;
+                height: 2.5rem;
+            }
+
+            .back-to-top svg {
+                width: 1.25rem;
+                height: 1.25rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <h1>RSS订阅服务</h1>
+                <button class="success refresh" onclick="refreshRSS()" title="刷新RSS内容">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    刷新
+                </button>
+                <button class="info" onclick="showApiDocs()" title="API接口说明">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 16v-4m0-4h.01" />
+                    </svg>
+                    接口说明
+                </button>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <img id="userAvatar" class="user-avatar" src="" alt="用户头像">
+                    <span id="userName" class="user-name"></span>
+                </div>
+                <button class="danger" id="logoutBtn" onclick="handleLogout()">退出登录</button>
+            </div>
+        </div>
+
+        <div id="messageBox"></div>
+
+        <div class="feed-section">
+            <h2>RSS订阅源</h2>
+            <div class="feed-form">
+                <input type="url" id="feedUrl" placeholder="输入RSS订阅源URL" required>
+                <button class="primary" id="addFeedBtn" onclick="addFeed()">添加订阅</button>
+            </div>
+            <div id="feedList" class="feed-list"></div>
+            <div class="pagination">
+                <button onclick="changePage(-1)" id="prevPage">上一页</button>
+                <span class="page-info">第 <span id="currentPage">1</span> 页，共 <span id="totalPages">1</span> 页</span>
+                <button onclick="changePage(1)" id="nextPage">下一页</button>
+            </div>
+        </div>
+
+        <div class="section content-section">
+            <div class="collapsible" onclick="toggleContentSection()">
+                <h2 class="section-header">
+                    RSS内容
+                    <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 9l-7 7-7-7" />
+                    </svg>
+                </h2>
+            </div>
+            <div class="collapsible-content">
+                <div id="rssContent" class="rss-items"></div>
+                <div class="pagination">
+                    <button onclick="changeRssPage(-1)" id="rssPrevPage">上一页</button>
+                    <span class="page-info">第 <span id="rssCurrentPage">1</span> 页，共 <span id="rssTotalPages">1</span>
+                        页</span>
+                    <button onclick="changeRssPage(1)" id="rssNextPage">下一页</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 返回顶部按钮 -->
+    <button class="back-to-top" id="backToTop" title="返回顶部" onclick="scrollToTop()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 15l7-7 7 7"></path>
+        </svg>
+    </button>
+
+    <!-- API Documentation Modal -->
+    <div id="apiModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="hideApiDocs()">&times;</span>
+            <h2>API接口文档</h2>
+            <div class="api-doc">
+                <div class="api-endpoint">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/feeds</span>
+                    <p class="description">获取所有RSS订阅源列表</p>
+                    <div class="params">
+                        <h4>响应示例：</h4>
+                        <pre>[
+  {
+    "url": "https://example.com/feed.xml",
+    "addedBy": "admin",
+    "addedAt": "2024-03-20T12:00:00Z"
+  }
+]</pre>
+                    </div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/feeds</span>
+                    <p class="description">添加新的RSS订阅源</p>
+                    <div class="params">
+                        <h4>请求参数：</h4>
+                        <pre>{
+  "url": "https://example.com/feed.xml"
+}</pre>
+                    </div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="method delete">DELETE</span>
+                    <span class="path">/api/feeds/:url</span>
+                    <p class="description">删除指定的RSS订阅源</p>
+                    <div class="params">
+                        <h4>参数说明：</h4>
+                        <p>url: 需要删除的RSS订阅源URL（需要URL编码）</p>
+                    </div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/rss</span>
+                    <p class="description">获取所有RSS内容</p>
+                    <div class="params">
+                        <h4>响应示例：</h4>
+                        <pre>[
+  {
+    "title": "文章标题",
+    "author": "作者",
+    "date": "2024-03-20T12:00:00Z",
+    "link": "https://example.com/article",
+    "content": "文章内容摘要"
+  }
+]</pre>
+                    </div>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/rss/refresh</span>
+                    <p class="description">手动刷新所有RSS内容</p>
+                </div>
+
+                <div class="api-endpoint">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/user</span>
+                    <p class="description">获取当前登录用户信息</p>
+                    <div class="params">
+                        <h4>响应示例：</h4>
+                        <pre>{
+  "login": "username",
+  "avatar_url": "https://github.com/avatar.jpg"
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取用户信息
+        async function getUserInfo() {
+            try {
+                const response = await fetch('/api/user');
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById('userAvatar').src = user.avatar_url;
+                    document.getElementById('userName').textContent = user.login;
+                }
+            } catch (error) {
+                console.error('Failed to get user info:', error);
+            }
+        }
+
+        function showMessage(message, type = 'error') {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.textContent = message;
+            messageBox.className = type;
+            messageBox.style.display = 'block';
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 5000);
+        }
+
+        // 分页相关变量
+        let currentPage = 1;
+        let itemsPerPage = 5;  // 每页显示5条订阅源
+        let totalFeeds = [];
+
+        // RSS内容分页变量
+        let rssCurrentPage = 1;
+        let rssItemsPerPage = 20;  // 每页显示20条RSS内容
+        let totalRssItems = [];
+
+        // 加载订阅源列表
+        async function loadFeeds() {
+            try {
+                const response = await fetch('/api/feeds');
+                if (response.ok) {
+                    totalFeeds = await response.json();
+                    updatePagination();
+                    displayFeeds();
+                } else {
+                    showMessage('加载订阅源失败');
+                }
+            } catch (error) {
+                console.error('Failed to load feeds:', error);
+                showMessage('加载订阅源失败');
+            }
+        }
+
+        // 更新分页信息
+        function updatePagination() {
+            const totalPages = Math.max(1, Math.ceil(totalFeeds.length / itemsPerPage));
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('totalPages').textContent = totalPages;
+
+            // 更新按钮状态
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage === totalPages;
+        }
+
+        // 切换页面
+        function changePage(delta) {
+            const totalPages = Math.ceil(totalFeeds.length / itemsPerPage);
+            const newPage = currentPage + delta;
+
+            if (newPage >= 1 && newPage <= totalPages) {
+                currentPage = newPage;
+                displayFeeds();
+                updatePagination();
+            }
+        }
+
+        // 显示当前页的订阅源
+        function displayFeeds() {
+            const feedList = document.getElementById('feedList');
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, totalFeeds.length);
+
+            if (totalFeeds.length === 0) {
+                feedList.innerHTML = '<div class="feed-item">暂无订阅源</div>';
+                return;
+            }
+
+            const currentFeeds = totalFeeds.slice(startIndex, endIndex);
+            feedList.innerHTML = currentFeeds.map(feed => `
+                <div class="feed-item">
+                    <span class="feed-url">${feed.url}</span>
+                    <button class="danger" onclick="deleteFeed('${encodeURIComponent(feed.url)}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        删除
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // 删除订阅源后的处理
+        async function deleteFeed(encodedUrl) {
+            try {
+                const response = await fetch(`/api/feeds/${encodedUrl}`, {
+                    method: 'DELETE',
+                });
+
+                if (response.ok) {
+                    showMessage('删除订阅源成功', 'success');
+                    await loadFeeds(); // 重新加载订阅源列表
+
+                    // 如果当前页没有内容了，回到上一页
+                    const totalPages = Math.ceil(totalFeeds.length / itemsPerPage);
+                    if (currentPage > totalPages && currentPage > 1) {
+                        currentPage--;
+                        displayFeeds();
+                    }
+
+                    loadRSSContent(); // 重新加载RSS内容
+                } else {
+                    showMessage('删除订阅源失败');
+                }
+            } catch (error) {
+                console.error('Failed to delete feed:', error);
+                showMessage('删除订阅源失败');
+            }
+        }
+
+        // 添加订阅源后的处理
+        async function addFeed() {
+            const input = document.getElementById('feedUrl');
+            const addButton = document.getElementById('addFeedBtn');
+            const url = input.value.trim();
+
+            if (!url) {
+                showMessage('请输入有效的RSS订阅源URL');
+                return;
+            }
+
+            try {
+                addButton.disabled = true;
+                const response = await fetch('/api/feeds', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    input.value = '';
+                    showMessage('添加订阅源成功', 'success');
+                    await loadFeeds(); // 重新加载订阅源列表
+
+                    // 如果添加新项目，跳转到最后一页
+                    currentPage = Math.ceil(totalFeeds.length / itemsPerPage);
+                    displayFeeds();
+                    updatePagination();
+
+                    loadRSSContent(); // 重新加载RSS内容
+                } else {
+                    showMessage(result.error || '添加订阅源失败');
+                }
+            } catch (error) {
+                console.error('Failed to add feed:', error);
+                showMessage('添加订阅源失败');
+            } finally {
+                addButton.disabled = false;
+            }
+        }
+
+        // 加载RSS内容
+        async function loadRSSContent() {
+            const contentDiv = document.getElementById('rssContent');
+            contentDiv.innerHTML = '<div class="loading">加载中...</div>';
+
+            try {
+                const response = await fetch('/api/rss');
+                if (response.ok) {
+                    totalRssItems = await response.json();
+                    // 按时间从新到旧排序
+                    totalRssItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    updateRssPagination();
+                    displayRssContent();
+                } else {
+                    contentDiv.innerHTML = '<div class="error">加载RSS内容失败</div>';
+                }
+            } catch (error) {
+                console.error('Failed to load RSS content:', error);
+                contentDiv.innerHTML = '<div class="error">加载RSS内容失败</div>';
+            }
+        }
+
+        // 更新RSS内容分页信息
+        function updateRssPagination() {
+            const totalPages = Math.max(1, Math.ceil(totalRssItems.length / rssItemsPerPage));
+            document.getElementById('rssCurrentPage').textContent = rssCurrentPage;
+            document.getElementById('rssTotalPages').textContent = totalPages;
+
+            // 更新按钮状态
+            document.getElementById('rssPrevPage').disabled = rssCurrentPage === 1;
+            document.getElementById('rssNextPage').disabled = rssCurrentPage === totalPages;
+        }
+
+        // 切换RSS内容页面
+        function changeRssPage(delta) {
+            const totalPages = Math.ceil(totalRssItems.length / rssItemsPerPage);
+            const newPage = rssCurrentPage + delta;
+
+            if (newPage >= 1 && newPage <= totalPages) {
+                rssCurrentPage = newPage;
+                displayRssContent();
+                updateRssPagination();
+            }
+        }
+
+        // 显示当前页的RSS内容
+        function displayRssContent() {
+            const contentDiv = document.getElementById('rssContent');
+            const startIndex = (rssCurrentPage - 1) * rssItemsPerPage;
+            const endIndex = Math.min(startIndex + rssItemsPerPage, totalRssItems.length);
+
+            if (totalRssItems.length === 0) {
+                contentDiv.innerHTML = '<div class="feed-item">暂无RSS内容</div>';
+                return;
+            }
+
+            const currentItems = totalRssItems.slice(startIndex, endIndex);
+            contentDiv.innerHTML = currentItems.map(item => `
+                <div class="rss-item">
+                    <h3><a href="${item.link}" target="_blank">${item.title}</a></h3>
+                    <p>${item.content}</p>
+                    <div class="meta">
+                        <span>作者: ${item.author}</span> | 
+                        <span>发布时间: ${formatDate(item.date)}</span>
+                        <span class="source">来源: ${new URL(item.link).hostname}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 格式化日期
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diff = now - date;
+
+            // 小于1分钟
+            if (diff < 60000) {
+                return '刚刚';
+            }
+            // 小于1小时
+            if (diff < 3600000) {
+                return `${Math.floor(diff / 60000)}分钟前`;
+            }
+            // 小于24小时
+            if (diff < 86400000) {
+                return `${Math.floor(diff / 3600000)}小时前`;
+            }
+            // 小于7天
+            if (diff < 604800000) {
+                return `${Math.floor(diff / 86400000)}天前`;
+            }
+
+            // 超过7天显示完整日期
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // 刷新RSS内容
+        async function refreshRSS() {
+            const refreshBtn = document.querySelector('.refresh');
+            const refreshIcon = refreshBtn.querySelector('svg');
+
+            try {
+                refreshBtn.disabled = true;
+                refreshIcon.classList.add('spin');
+
+                const response = await fetch('/api/rss/refresh', {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    showMessage('RSS内容已更新', 'success');
+                    rssCurrentPage = 1; // 刷新后返回第一页
+                    await loadRSSContent();
+                } else {
+                    showMessage('刷新RSS内容失败');
+                }
+            } catch (error) {
+                console.error('Failed to refresh RSS:', error);
+                showMessage('刷新RSS内容失败');
+            } finally {
+                refreshBtn.disabled = false;
+                refreshIcon.classList.remove('spin');
+            }
+        }
+
+        // 处理退出登录
+        function handleLogout() {
+            window.location.href = '/login';
+        }
+
+        // API文档模态框
+        function showApiDocs() {
+            document.getElementById('apiModal').style.display = 'block';
+        }
+
+        function hideApiDocs() {
+            document.getElementById('apiModal').style.display = 'none';
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function (event) {
+            const modal = document.getElementById('apiModal');
+            if (event.target === modal) {
+                hideApiDocs();
+            }
+        }
+
+        // 折叠功能
+        function toggleContentSection() {
+            const section = document.querySelector('.content-section');
+            const header = section.querySelector('.collapsible');
+            const content = section.querySelector('.collapsible-content');
+
+            toggleSection(section, header, content);
+            localStorage.setItem('contentSectionCollapsed', header.classList.contains('collapsed'));
+        }
+
+        function toggleSection(section, header, content) {
+            const isCollapsing = !header.classList.contains('collapsed');
+
+            header.classList.toggle('collapsed');
+            content.classList.toggle('collapsed');
+
+            // 使用延迟来处理display属性，确保动画完成
+            if (isCollapsing) {
+                // 折叠时，等待动画完成后隐藏
+                setTimeout(() => {
+                    section.classList.add('collapsed');
+                }, 200); // 与CSS过渡时间相匹配
+            } else {
+                // 展开时，立即显示
+                section.classList.remove('collapsed');
+            }
+        }
+
+        // 初始化折叠状态
+        function initCollapsibleState() {
+            // Content section
+            const contentSection = document.querySelector('.content-section');
+            const contentHeader = contentSection.querySelector('.collapsible');
+            const contentContent = contentSection.querySelector('.collapsible-content');
+            const isContentCollapsed = localStorage.getItem('contentSectionCollapsed');
+
+            if (isContentCollapsed !== null) {
+                if (isContentCollapsed === 'true') {
+                    contentHeader.classList.add('collapsed');
+                    contentContent.classList.add('collapsed');
+                    contentSection.classList.add('collapsed');
+                }
+            } else {
+                // 默认收起内容区域
+                contentHeader.classList.add('collapsed');
+                contentContent.classList.add('collapsed');
+                contentSection.classList.add('collapsed');
+                localStorage.setItem('contentSectionCollapsed', 'true');
+            }
+        }
+
+        // 初始化
+        window.onload = () => {
+            getUserInfo();
+            loadFeeds();
+            loadRSSContent();
+            initCollapsibleState();
+        };
+
+        // 返回顶部功能
+        const backToTopButton = document.getElementById('backToTop');
+
+        // 监听滚动事件
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 300) {
+                backToTopButton.classList.add('visible');
+            } else {
+                backToTopButton.classList.remove('visible');
+            }
+        });
+
+        // 平滑滚动到顶部
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // 添加样式
+        const style = document.createElement('style');
+        style.textContent = `
+            .rss-item .meta {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1rem;
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+                margin-top: 0.5rem;
+            }
+            
+            .rss-item .source {
+                color: var(--primary-color);
+            }
+            
+            @media (max-width: 640px) {
+                .rss-item .meta {
+                    flex-direction: column;
+                    gap: 0.25rem;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>
