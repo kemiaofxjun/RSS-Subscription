@@ -58,7 +58,7 @@ npm run deploy
 ### GitHub OAuth 配置
 
 1. 在 GitHub 创建一个新的 OAuth 应用
-2. 设置回调 URL：`https://your-worker-url/auth/github`
+2. 设置回调 URL：`https://your-worker-url/auth/github/callback`
 3. 获取 Client ID 和 Client Secret
 4. 在 Cloudflare Workers 设置环境变量
 

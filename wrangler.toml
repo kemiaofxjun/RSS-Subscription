@@ -1,6 +1,6 @@
 name = "rss-cloudflare"
 main = "src/index.ts"
-compatibility_date = "2024-09-23"
+compatibility_date = "2025-06-23"
 compatibility_flags = ["nodejs_compat"]
 
 # KV 命名空间配置
