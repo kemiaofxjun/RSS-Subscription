@@ -61,14 +61,16 @@
             }
         }
 
+        /* 确保内容区域占满剩余空间 */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-primary);
-            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
         }
 
         .container {
+            flex: 1;
             max-width: 1200px;
             margin: 0 auto;
             padding: 1rem;
@@ -238,6 +240,7 @@
             cursor: pointer;
             transition: background-color 0.2s ease;
             border-bottom: 1px solid var(--border-color);
+            background-color: var(--card-background);
         }
 
         .collapsible:hover {
@@ -265,15 +268,16 @@
         .collapsible-content {
             padding: 1rem;
             opacity: 1;
-            transform-origin: top;
-            transition: transform 0.2s ease, opacity 0.2s ease;
+            max-height: 100%;
+            transition: all 0.2s ease;
+            background-color: var(--card-background);
         }
 
         .collapsible-content.collapsed {
-            padding: 0 1rem;
+            padding: 0;
             opacity: 0;
-            transform: scaleY(0);
-            pointer-events: none;
+            max-height: 0;
+            overflow: hidden;
         }
 
         /* 确保内容区域在折叠时不占用空间 */
@@ -678,6 +682,34 @@
                 height: 1.25rem;
             }
         }
+
+        /* 页脚样式 */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background-color: var(--card-background);
+            border-top: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-top: auto;
+        }
+
+        .footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .footer a:hover {
+            color: var(--primary-hover);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .footer {
+                background-color: var(--card-background);
+                border-color: var(--border-color);
+            }
+        }
     </style>
 </head>
 
@@ -746,6 +778,12 @@
             </div>
         </div>
     </div>
+
+    <footer class="footer">
+        <p>© 2024 RSS订阅服务 | 由 <a href="https://workers.cloudflare.com" target="_blank" rel="noopener">Cloudflare
+                Workers</a> 提供支持</p>
+        <p>开源代码托管在 <a href="https://github.com" target="_blank" rel="noopener">GitHub</a></p>
+    </footer>
 
     <!-- 返回顶部按钮 -->
     <button class="back-to-top" id="backToTop" title="返回顶部" onclick="scrollToTop()">
@@ -1173,54 +1211,32 @@
             }
         }
 
-        // 折叠功能
+        // 修改折叠功能的JavaScript
         function toggleContentSection() {
             const section = document.querySelector('.content-section');
             const header = section.querySelector('.collapsible');
             const content = section.querySelector('.collapsible-content');
 
-            toggleSection(section, header, content);
-            localStorage.setItem('contentSectionCollapsed', header.classList.contains('collapsed'));
-        }
-
-        function toggleSection(section, header, content) {
-            const isCollapsing = !header.classList.contains('collapsed');
-
             header.classList.toggle('collapsed');
             content.classList.toggle('collapsed');
 
-            // 使用延迟来处理display属性，确保动画完成
-            if (isCollapsing) {
-                // 折叠时，等待动画完成后隐藏
-                setTimeout(() => {
-                    section.classList.add('collapsed');
-                }, 200); // 与CSS过渡时间相匹配
-            } else {
-                // 展开时，立即显示
-                section.classList.remove('collapsed');
-            }
+            // 保存状态到localStorage
+            localStorage.setItem('contentSectionCollapsed', header.classList.contains('collapsed'));
         }
 
         // 初始化折叠状态
         function initCollapsibleState() {
-            // Content section
             const contentSection = document.querySelector('.content-section');
             const contentHeader = contentSection.querySelector('.collapsible');
             const contentContent = contentSection.querySelector('.collapsible-content');
-            const isContentCollapsed = localStorage.getItem('contentSectionCollapsed');
+            const isContentCollapsed = localStorage.getItem('contentSectionCollapsed') === 'true';
 
-            if (isContentCollapsed !== null) {
-                if (isContentCollapsed === 'true') {
-                    contentHeader.classList.add('collapsed');
-                    contentContent.classList.add('collapsed');
-                    contentSection.classList.add('collapsed');
-                }
-            } else {
-                // 默认收起内容区域
+            if (isContentCollapsed) {
                 contentHeader.classList.add('collapsed');
                 contentContent.classList.add('collapsed');
-                contentSection.classList.add('collapsed');
-                localStorage.setItem('contentSectionCollapsed', 'true');
+            } else {
+                contentHeader.classList.remove('collapsed');
+                contentContent.classList.remove('collapsed');
             }
         }
 
