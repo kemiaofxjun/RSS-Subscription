@@ -1,18 +1,20 @@
 {
-	"name": "rss-cloudflare",
-	"version": "0.0.0",
-	"private": true,
-	"scripts": {
-		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
-		"start": "wrangler dev",
-		"test": "vitest",
-		"cf-typegen": "wrangler types"
-	},
-	"devDependencies": {
-		"@cloudflare/vitest-pool-workers": "^0.8.19",
-		"typescript": "^5.5.2",
-		"vitest": "~3.2.0",
-		"wrangler": "^4.24.3"
-	}
+    "name": "rss-cloudflare",
+    "version": "1.0.0",
+    "description": "RSS subscription service using Cloudflare Workers",
+    "main": "src/index.ts",
+    "scripts": {
+        "dev": "wrangler dev",
+        "deploy": "wrangler deploy"
+    },
+    "dependencies": {
+        "hono": "^3.12.0",
+        "rss-parser": "^3.13.0",
+        "@hono/oauth-providers": "^0.3.1"
+    },
+    "devDependencies": {
+        "@cloudflare/workers-types": "^4.20240208.0",
+        "typescript": "^5.3.3",
+        "wrangler": "^3.28.1"
+    }
 }

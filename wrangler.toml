@@ -1,0 +1,20 @@
+name = "rss-cloudflare"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# KV 命名空间配置
+kv_namespaces = [
+  { binding = "RSS_FEEDS", id = "5c8dc376e28e4dd7ad81a4bb4e996833" }
+]
+
+# R2 存储桶配置
+[[r2_buckets]]
+binding = 'RSS_BUCKET'
+bucket_name = 'rss-data'
+
+# 环境变量配置
+[vars]
+GITHUB_CLIENT_ID = "Ov23liaiwXf57O8WFXew"
+GITHUB_CLIENT_SECRET = "8e0d6e9113059e4ecf4b9cd23b43f04796bad9a8"
+ALLOWED_GITHUB_USERS = "HeLongaa" 
