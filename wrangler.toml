@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 # KV 命名空间配置
 kv_namespaces = [
-  { binding = "RSS_FEEDS", id = "5c8dc376e28e4dd7ad81a4bb4e996833" }
+  { binding = "RSS_FEEDS", id = "kv-id" }
 ]
 
 # R2 存储桶配置
@@ -15,10 +15,10 @@ bucket_name = 'rss-data'
 
 # 环境变量配置
 [vars]
-GITHUB_CLIENT_ID = "Ov23liaiwXf57O8WFXew"
-GITHUB_CLIENT_SECRET = "8e0d6e9113059e4ecf4b9cd23b43f04796bad9a8"
-ALLOWED_GITHUB_USERS = "HeLongaa"
-APP_URL = "https://rss-api.040720.xyz"
+GITHUB_CLIENT_ID = "github-cl"
+GITHUB_CLIENT_SECRET = "github-se"
+ALLOWED_GITHUB_USERS = "allow-user-name"
+APP_URL = "deploy-url"
 
 # 静态资源配置
 [site]
