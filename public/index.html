@@ -817,49 +817,11 @@
     <div id="apiModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="hideApiDocs()">&times;</span>
-            <h2>API接口文档</h2>
+            <h2>API接口</h2>
             <div class="api-doc">
                 <div class="api-endpoint">
-                    <span class="method get">GET</span>
-                    <span class="path">/api/feeds</span>
-                    <p class="description">获取所有RSS订阅源列表</p>
-                    <div class="params">
-                        <h4>响应示例：</h4>
-                        <pre>[
-  {
-    "url": "https://example.com/feed.xml",
-    "addedBy": "admin",
-    "addedAt": "2024-03-20T12:00:00Z"
-  }
-]</pre>
-                    </div>
-                </div>
-
-                <div class="api-endpoint">
-                    <span class="method post">POST</span>
-                    <span class="path">/api/feeds</span>
-                    <p class="description">添加新的RSS订阅源</p>
-                    <div class="params">
-                        <h4>请求参数：</h4>
-                        <pre>{
-  "url": "https://example.com/feed.xml"
-}</pre>
-                    </div>
-                </div>
-
-                <div class="api-endpoint">
-                    <span class="method delete">DELETE</span>
-                    <span class="path">/api/feeds/:url</span>
-                    <p class="description">删除指定的RSS订阅源</p>
-                    <div class="params">
-                        <h4>参数说明：</h4>
-                        <p>url: 需要删除的RSS订阅源URL（需要URL编码）</p>
-                    </div>
-                </div>
-
-                <div class="api-endpoint">
-                    <span class="method get">GET</span>
-                    <span class="path">/api/rss</span>
+                    <span class="method get">GET (公开)</span>
+                    <span class="path">/api/rss/public</span>
                     <p class="description">获取所有RSS内容</p>
                     <div class="params">
                         <h4>响应示例：</h4>
@@ -872,25 +834,6 @@
     "content": "文章内容摘要"
   }
 ]</pre>
-                    </div>
-                </div>
-
-                <div class="api-endpoint">
-                    <span class="method post">POST</span>
-                    <span class="path">/api/rss/refresh</span>
-                    <p class="description">手动刷新所有RSS内容</p>
-                </div>
-
-                <div class="api-endpoint">
-                    <span class="method get">GET</span>
-                    <span class="path">/api/user</span>
-                    <p class="description">获取当前登录用户信息</p>
-                    <div class="params">
-                        <h4>响应示例：</h4>
-                        <pre>{
-  "login": "username",
-  "avatar_url": "https://github.com/avatar.jpg"
-}</pre>
                     </div>
                 </div>
             </div>
@@ -1229,10 +1172,14 @@
         // API文档模态框
         function showApiDocs() {
             document.getElementById('apiModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
         }
 
         function hideApiDocs() {
             document.getElementById('apiModal').style.display = 'none';
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
         }
 
         // 点击模态框外部关闭
