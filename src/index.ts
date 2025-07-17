@@ -146,7 +146,7 @@ app.get('/auth/github/callback', async (c: AppContext) => {
 // 获取所有RSS订阅源
 app.get('/api/feeds', authMiddleware, async (c) => {
     try {
-        const feeds = await c.env?.RSS_FEEDS.get('feeds', 'json') || [];
+        const feeds = await c.env.RSS_FEEDS.get('feeds', 'json') || [];
         return c.json(feeds);
     } catch (error) {
         console.error('Failed to get feeds:', error);
@@ -169,7 +169,7 @@ app.post('/api/feeds', authMiddleware, async (c) => {
             return c.json({ error: 'Invalid RSS feed URL' }, 400);
         }
 
-        const feeds: RSSFeed[] = await c.env?.RSS_FEEDS.get('feeds', 'json') || [];
+        const feeds: RSSFeed[] = await c.env.RSS_FEEDS.get('feeds', 'json') || [];
 
         // 检查是否已存在
         if (feeds.some(feed => feed.url === url)) {
@@ -183,11 +183,11 @@ app.post('/api/feeds', authMiddleware, async (c) => {
         };
 
         feeds.push(newFeed);
-        await c.env?.RSS_FEEDS.put('feeds', JSON.stringify(feeds));
+        await c.env.RSS_FEEDS.put('feeds', JSON.stringify(feeds));
 
         // 清除R2缓存，以便下次获取新内容
         try {
-            await c.env?.RSS_BUCKET.delete('rss.json');
+            await c.env.RSS_BUCKET.delete('rss.json');
         } catch (error) {
             console.error('Failed to clear RSS cache:', error);
         }
@@ -301,7 +301,7 @@ app.get('/api/rss', authMiddleware, async (c: AppContext) => {
 
         // 将解析后的数据存储到R2
         if (items.length > 0) {
-            await c.env?.RSS_BUCKET.put('rss.json', JSON.stringify(items));
+            await c.env.RSS_BUCKET.put('rss.json', JSON.stringify(items));
         }
 
         return c.json(items);
@@ -315,14 +315,14 @@ app.get('/api/rss', authMiddleware, async (c: AppContext) => {
 app.delete('/api/feeds/:url', authMiddleware, async (c) => {
     try {
         const url = decodeURIComponent(c.req.param('url'));
-        const feeds: RSSFeed[] = await c.env?.RSS_FEEDS.get('feeds', 'json') || [];
+        const feeds: RSSFeed[] = await c.env.RSS_FEEDS.get('feeds', 'json') || [];
 
         const newFeeds = feeds.filter(feed => feed.url !== url);
-        await c.env?.RSS_FEEDS.put('feeds', JSON.stringify(newFeeds));
+        await c.env.RSS_FEEDS.put('feeds', JSON.stringify(newFeeds));
 
         // 清除R2缓存，以便下次获取新内容
         try {
-            await c.env?.RSS_BUCKET.delete('rss.json');
+            await c.env.RSS_BUCKET.delete('rss.json');
         } catch (error) {
             console.error('Failed to clear RSS cache:', error);
         }
@@ -359,7 +359,7 @@ app.get('/api/user', async (c) => {
 // 刷新RSS内容
 app.post('/api/rss/refresh', async (c) => {
     try {
-        const feeds: RSSFeed[] = await c.env?.RSS_FEEDS.get('feeds', 'json') || [];
+        const feeds: RSSFeed[] = await c.env.RSS_FEEDS.get('feeds', 'json') || [];
         const items: RSSItem[] = [];
 
         for (const feed of feeds) {
@@ -399,7 +399,7 @@ app.post('/api/rss/refresh', async (c) => {
 
         // 更新R2缓存
         if (items.length > 0) {
-            await c.env?.RSS_BUCKET.put('rss.json', JSON.stringify(items));
+            await c.env.RSS_BUCKET.put('rss.json', JSON.stringify(items));
         }
 
         return c.json({ success: true });
@@ -408,5 +408,74 @@ app.post('/api/rss/refresh', async (c) => {
         return c.json({ error: 'Failed to refresh RSS' }, 500);
     }
 });
+
+// ====== 新增：前端设置抓取间隔 API ======
+app.get('/api/settings', async (c) => {
+    const interval = await c.env.RSS_FEEDS.get(FETCH_INTERVAL_KEY);
+    return c.json({ interval: interval ? parseInt(interval, 10) : DEFAULT_FETCH_INTERVAL });
+});
+
+app.post('/api/settings', async (c) => {
+    try {
+        let { interval } = await c.req.json();
+        interval = Number(interval); // 强制转为数字
+        if (!Number.isInteger(interval) || interval < 1 || interval > 1440) {
+            return c.json({ error: '无效的抓取间隔，需为1-24小时' }, 400);
+        }
+        await c.env.RSS_FEEDS.put(FETCH_INTERVAL_KEY, interval.toString());
+        return c.json({ success: true });
+    } catch (e) {
+        return c.json({ error: '设置失败' }, 400);
+    }
+});
+
+// ====== 新增：定时抓取相关 ======
+// 获取抓取间隔（分钟）和上次抓取时间的 KV key
+const FETCH_INTERVAL_KEY = 'rss_fetch_interval';
+const LAST_FETCH_TIME_KEY = 'rss_last_fetch_time';
+const DEFAULT_FETCH_INTERVAL = 10; // 默认10分钟
+
+// 定时任务入口（Cloudflare Worker Cron）
+export async function scheduled(event: ScheduledEvent, env: HonoEnv, ctx: ExecutionContext) {
+    // 读取抓取间隔
+    const intervalStr = await env.Bindings.RSS_FEEDS.get(FETCH_INTERVAL_KEY);
+    const interval = parseInt(intervalStr || `${DEFAULT_FETCH_INTERVAL}`, 10);
+    const lastFetchStr = await env.Bindings.RSS_FEEDS.get(LAST_FETCH_TIME_KEY);
+    const lastFetch = parseInt(lastFetchStr || '0', 10);
+    const now = Date.now();
+    if (now - lastFetch >= interval * 60 * 1000) {
+        // 执行抓取
+        await refreshAllFeeds(env);
+        await env.Bindings.RSS_FEEDS.put(LAST_FETCH_TIME_KEY, now.toString());
+    }
+}
+
+// 定时抓取所有订阅源并存储到R2
+async function refreshAllFeeds(env: HonoEnv) {
+    const feeds: RSSFeed[] = await env.Bindings.RSS_FEEDS.get('feeds', 'json') || [];
+    const items: RSSItem[] = [];
+    for (const feed of feeds) {
+        try {
+            const response = await fetch(feed.url);
+            if (!response.ok) continue;
+            const text = await response.text();
+            const feedContent = await parser.parseString(text);
+            for (const item of feedContent.items) {
+                const content = (item.summary || item.description || item['content:encoded'] || item.contentSnippet || item.content || '').trim();
+                items.push({
+                    title: item.title || '',
+                    author: item.creator || feedContent.title || '',
+                    date: item.pubDate || item.isoDate || '',
+                    link: item.link || '',
+                    content: sanitizeContent(content),
+                });
+            }
+        } catch (e) { }
+    }
+    items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    if (items.length > 0) {
+        await env.Bindings.RSS_BUCKET.put('rss.json', JSON.stringify(items));
+    }
+}
 
 export default app; 

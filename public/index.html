@@ -6,6 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RSS订阅服务</title>
     <style>
+        html,
+        body {
+            width: 100%;
+            min-width: 100vw;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
         :root {
             --primary-color: #2563eb;
             --primary-hover: #1d4ed8;
@@ -70,13 +85,6 @@
             background-color: var(--background-color);
         }
 
-        .container {
-            flex: 1;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 1rem;
-        }
-
         .header {
             background-color: var(--card-background);
             padding: 1rem;
@@ -95,6 +103,11 @@
             align-items: center;
             gap: 1rem;
             flex-wrap: wrap;
+        }
+
+        button#fetchIntervalSubmit {
+            height: auto !important;
+            margin-left: auto !important;
         }
 
         .header-right {
@@ -461,10 +474,11 @@
             padding: 2rem;
             width: 100%;
             max-width: 800px;
-            border-radius: var(--radius);
+            border-radius: 1rem !important;
             box-shadow: var(--shadow);
             max-height: calc(100vh - 4rem);
             overflow-y: auto;
+            overflow: hidden;
         }
 
         .close-modal {
@@ -733,6 +747,11 @@
                     </svg>
                     接口说明
                 </button>
+                <span
+                    style="margin-left:0.75rem;font-size:0.95rem;color:var(--text-secondary);font-weight:500;">后端抓取间隔（小时）:</span>
+                <input id="fetchIntervalInput" type="number" min="1" max="24" placeholder="间隔(小时)"
+                    style="margin-left:0.5rem;width:7rem;padding:0.5rem 1rem;border-radius:0.75rem;border:1px solid var(--primary-color);font-size:0.95rem;box-shadow:var(--shadow);outline:none;transition:box-shadow 0.2s;">
+                <button id="fetchIntervalSubmit" class="primary" style="margin-left:0.25rem;height:2.5rem;">提交</button>
             </div>
             <div class="header-right">
                 <div class="user-info">
@@ -879,6 +898,17 @@
     </div>
 
     <script>
+        function showMessage(message, type = 'error') {
+            const box = document.getElementById('messageBox');
+            if (!box) return;
+            box.textContent = message;
+            box.className = type;
+            box.style.display = 'block';
+            setTimeout(() => {
+                box.style.display = 'none';
+            }, 2500);
+        }
+
         const API_BASE_URL = 'https://rss-api.040720.xyz';
 
         // 获取用户信息
@@ -1243,12 +1273,44 @@
         }
 
         // 初始化
-        window.onload = () => {
+        window.onload = async () => {
             getUserInfo();
             loadFeeds();
             loadRSSContent();
             initCollapsibleState();
+            await initFetchIntervalInput();
         };
+
+        // ====== 新增：抓取间隔设置 ======
+        async function initFetchIntervalInput() {
+            const input = document.getElementById('fetchIntervalInput');
+            const btn = document.getElementById('fetchIntervalSubmit');
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/settings`);
+                const data = await res.json();
+                input.value = Math.max(1, Math.round(data.interval / 60));
+            } catch { }
+            btn.onclick = async function () {
+                const hours = parseInt(input.value, 10);
+                if (isNaN(hours) || hours < 1 || hours > 24) {
+                    showMessage('请输入1-24之间的小时数', 'error');
+                    return;
+                }
+                btn.disabled = true;
+                const interval = hours * 60;
+                const res = await fetch(`${API_BASE_URL}/api/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ interval })
+                });
+                btn.disabled = false;
+                if (res.ok) {
+                    showMessage('已保存后端抓取间隔', 'success');
+                } else {
+                    showMessage('设置失败', 'error');
+                }
+            };
+        }
 
         // 返回顶部功能
         const backToTopButton = document.getElementById('backToTop');
