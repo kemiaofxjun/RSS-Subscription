@@ -492,4 +492,23 @@ app.post('/api/cron/test', authMiddleware, async (c) => {
     }
 });
 
-export default app; 
+const exported = app; 
+
+export default Object.assign(exported, {
+  async scheduled(event: ScheduledEvent, env: HonoEnv['Bindings'], ctx: ExecutionContext) {
+    const lastFetchStr = await env.RSS_FEEDS.get(LAST_FETCH_TIME_KEY);
+    const lastFetch = parseInt(lastFetchStr || '0', 10);
+    const now = Date.now();
+
+    console.log(`Cron triggered. Last fetch: ${lastFetch}, Now: ${now}`);
+
+    if (now - lastFetch >= DEFAULT_FETCH_INTERVAL * 60 * 1000) {
+      console.log('Executing RSS refresh...');
+      await refreshAllFeeds(env);
+      await env.RSS_FEEDS.put(LAST_FETCH_TIME_KEY, now.toString());
+      console.log('RSS refresh completed');
+    } else {
+      console.log('Skipping refresh - not enough time passed');
+    }
+  }
+});
