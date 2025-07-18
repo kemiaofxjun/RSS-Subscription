@@ -419,55 +419,42 @@ app.post('/api/rss/refresh', async (c) => {
     }
 });
 
-// ====== 新增：前端设置抓取间隔 API ======
-app.get('/api/settings', async (c) => {
-    const interval = await c.env.RSS_FEEDS.get(FETCH_INTERVAL_KEY);
-    return c.json({ interval: interval ? parseInt(interval, 10) : DEFAULT_FETCH_INTERVAL });
-});
-
-app.post('/api/settings', async (c) => {
-    try {
-        let { interval } = await c.req.json();
-        interval = Number(interval); // 强制转为数字
-        if (!Number.isInteger(interval) || interval < 1 || interval > 1440) {
-            return c.json({ error: '无效的抓取间隔，需为1-24小时' }, 400);
-        }
-        await c.env.RSS_FEEDS.put(FETCH_INTERVAL_KEY, interval.toString());
-        return c.json({ success: true });
-    } catch (e) {
-        return c.json({ error: '设置失败' }, 400);
-    }
-});
-
-// ====== 新增：定时抓取相关 ======
-// 获取抓取间隔（分钟）和上次抓取时间的 KV key
-const FETCH_INTERVAL_KEY = 'rss_fetch_interval';
+// ====== 定时抓取相关 ======
 const LAST_FETCH_TIME_KEY = 'rss_last_fetch_time';
-const DEFAULT_FETCH_INTERVAL = 10; // 默认10分钟
+const DEFAULT_FETCH_INTERVAL = 30; // 固定30分钟间隔
 
 // 定时任务入口（Cloudflare Worker Cron）
-export async function scheduled(event: ScheduledEvent, env: HonoEnv, ctx: ExecutionContext) {
-    // 读取抓取间隔
-    const intervalStr = await env.Bindings.RSS_FEEDS.get(FETCH_INTERVAL_KEY);
-    const interval = parseInt(intervalStr || `${DEFAULT_FETCH_INTERVAL}`, 10);
-    const lastFetchStr = await env.Bindings.RSS_FEEDS.get(LAST_FETCH_TIME_KEY);
+export async function scheduled(event: ScheduledEvent, env: HonoEnv['Bindings'], ctx: ExecutionContext) {
+    const lastFetchStr = await env.RSS_FEEDS.get(LAST_FETCH_TIME_KEY);
     const lastFetch = parseInt(lastFetchStr || '0', 10);
     const now = Date.now();
-    if (now - lastFetch >= interval * 60 * 1000) {
-        // 执行抓取
+
+    console.log(`Cron triggered. Last fetch: ${lastFetch}, Now: ${now}`);
+
+    if (now - lastFetch >= DEFAULT_FETCH_INTERVAL * 60 * 1000) {
+        console.log('Executing RSS refresh...');
         await refreshAllFeeds(env);
-        await env.Bindings.RSS_FEEDS.put(LAST_FETCH_TIME_KEY, now.toString());
+        await env.RSS_FEEDS.put(LAST_FETCH_TIME_KEY, now.toString());
+        console.log('RSS refresh completed');
+    } else {
+        console.log('Skipping refresh - not enough time passed');
     }
 }
 
 // 定时抓取所有订阅源并存储到R2
-async function refreshAllFeeds(env: HonoEnv) {
-    const feeds: RSSFeed[] = await env.Bindings.RSS_FEEDS.get('feeds', 'json') || [];
+async function refreshAllFeeds(env: HonoEnv['Bindings']) {
+    const feeds: RSSFeed[] = await env.RSS_FEEDS.get('feeds', 'json') || [];
     const items: RSSItem[] = [];
+
+    console.log(`Refreshing ${feeds.length} feeds`);
+
     for (const feed of feeds) {
         try {
             const response = await fetch(feed.url);
-            if (!response.ok) continue;
+            if (!response.ok) {
+                console.error(`Failed to fetch ${feed.url}: ${response.status}`);
+                continue;
+            }
             const text = await response.text();
             const feedContent = await parser.parseString(text);
             for (const item of feedContent.items) {
@@ -480,12 +467,29 @@ async function refreshAllFeeds(env: HonoEnv) {
                     content: sanitizeContent(content),
                 });
             }
-        } catch (e) { }
+        } catch (e) {
+            console.error(`Error parsing feed ${feed.url}:`, e);
+        }
     }
+
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     if (items.length > 0) {
-        await env.Bindings.RSS_BUCKET.put('rss.json', JSON.stringify(items));
+        await env.RSS_BUCKET.put('rss.json', JSON.stringify(items));
+        console.log(`Stored ${items.length} RSS items to R2`);
     }
 }
+
+// 手动触发定时抓取（用于测试）
+app.post('/api/cron/test', authMiddleware, async (c) => {
+    try {
+        console.log('Manual cron test triggered');
+        await refreshAllFeeds(c.env);
+        await c.env.RSS_FEEDS.put(LAST_FETCH_TIME_KEY, Date.now().toString());
+        return c.json({ success: true, message: '定时抓取测试执行成功' });
+    } catch (error) {
+        console.error('Manual cron test failed:', error);
+        return c.json({ error: '定时抓取测试执行失败' }, 500);
+    }
+});
 
 export default app; 

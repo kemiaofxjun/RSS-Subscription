@@ -215,6 +215,14 @@
             background-color: var(--info-hover);
         }
 
+        button.warning {
+            background-color: #f59e0b;
+        }
+
+        button.warning:hover:not(:disabled) {
+            background-color: #d97706;
+        }
+
         .feed-form {
             display: flex;
             gap: 0.75rem;
@@ -754,6 +762,13 @@
                     </svg>
                     刷新
                 </button>
+                <button class="warning" onclick="testCronJob()" title="测试定时抓取功能">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 6v6l4 2" />
+                    </svg>
+                    测试定时抓取
+                </button>
                 <button class="info" onclick="showApiDocs()" title="API接口说明">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10" />
@@ -761,11 +776,6 @@
                     </svg>
                     接口说明
                 </button>
-                <span
-                    style="margin-left:0.75rem;font-size:0.95rem;color:var(--text-secondary);font-weight:500;">后端抓取间隔（小时）:</span>
-                <input id="fetchIntervalInput" type="number" min="1" max="24" placeholder="间隔(小时)"
-                    style="margin-left:0.5rem;width:7rem;padding:0.5rem 1rem;border-radius:0.75rem;border:1px solid var(--primary-color);font-size:0.95rem;box-shadow:var(--shadow);outline:none;transition:box-shadow 0.2s;">
-                <button id="fetchIntervalSubmit" class="primary" style="margin-left:0.25rem;height:2.5rem;">提交</button>
             </div>
             <div class="header-right">
                 <div class="user-info">
@@ -1240,7 +1250,6 @@
             loadFeeds();
             loadRSSContent();
             initCollapsibleState();
-            await initFetchIntervalInput();
         };
 
         // ====== 新增：抓取间隔设置 ======
@@ -1272,6 +1281,38 @@
                     showMessage('设置失败', 'error');
                 }
             };
+        }
+
+        // 测试定时抓取功能
+        async function testCronJob() {
+            const testBtn = document.querySelector('button[onclick="testCronJob()"]');
+            const testIcon = testBtn.querySelector('svg');
+
+            try {
+                testBtn.disabled = true;
+                testIcon.classList.add('spin');
+
+                const response = await fetch(`${API_BASE_URL}/api/cron/test`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showMessage(result.message || '定时抓取测试执行成功', 'success');
+                    rssCurrentPage = 1; // 测试后返回第一页
+                    await loadRSSContent();
+                } else {
+                    showMessage(result.error || '定时抓取测试失败');
+                }
+            } catch (error) {
+                console.error('Failed to test cron job:', error);
+                showMessage('定时抓取测试失败');
+            } finally {
+                testBtn.disabled = false;
+                testIcon.classList.remove('spin');
+            }
         }
 
         // 返回顶部功能
