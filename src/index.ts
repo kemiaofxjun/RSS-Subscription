@@ -163,9 +163,9 @@ app.post('/api/feeds', authMiddleware, async (c) => {
             return c.json({ error: 'URL is required' }, 400);
         }
 
-        // 验证RSS源
-        const isValid = await validateRSSFeed(url);
-        if (!isValid) {
+        // 验证RSS源并获取标题
+        const feedInfo = await validateAndGetFeedInfo(url);
+        if (!feedInfo) {
             return c.json({ error: 'Invalid RSS feed URL' }, 400);
         }
 
@@ -178,6 +178,8 @@ app.post('/api/feeds', authMiddleware, async (c) => {
 
         const newFeed: RSSFeed = {
             url,
+            title: feedInfo.title,
+            favicon: `${c.env.IMG_PROXY_URL}?url=${encodeURIComponent(url)}&size=256`,
             addedBy: 'admin',
             addedAt: new Date().toISOString(),
         };
@@ -185,7 +187,7 @@ app.post('/api/feeds', authMiddleware, async (c) => {
         feeds.push(newFeed);
         await c.env.RSS_FEEDS.put('feeds', JSON.stringify(feeds));
 
-        // 清除R2缓存，以便下次获取新内容
+        // 清除R2缓存
         try {
             await c.env.RSS_BUCKET.delete('rss.json');
         } catch (error) {
@@ -199,8 +201,8 @@ app.post('/api/feeds', authMiddleware, async (c) => {
     }
 });
 
-// 验证RSS源
-async function validateRSSFeed(url: string) {
+// 验证RSS源并获取信息
+async function validateAndGetFeedInfo(url: string) {
     try {
         const response = await fetch(url);
         if (!response.ok) {
@@ -208,10 +210,18 @@ async function validateRSSFeed(url: string) {
         }
         const text = await response.text();
         const feed = await parser.parseString(text);
-        return feed.items && feed.items.length > 0;
+
+        if (!feed.items || feed.items.length === 0) {
+            return null;
+        }
+
+        return {
+            title: feed.title || new URL(url).hostname,
+            description: feed.description || ''
+        };
     } catch (error) {
         console.error(`Failed to validate RSS feed: ${url}`, error);
-        return false;
+        return null;
     }
 }
 

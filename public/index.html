@@ -303,26 +303,40 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.5rem 1.5rem;
+            padding: 1rem;
             border: 1px solid var(--border-color);
-            border-radius: var(--radius);
+            border-radius: 8px;
             margin-bottom: 0.5rem;
-            background-color: var(--card-background);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .feed-item:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow);
-        }
-
-        .feed-item .feed-url {
+        .feed-info {
+            display: flex;
+            align-items: center;
             flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            margin-right: 1rem;
+        }
+
+        .feed-favicon {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .feed-details {
+            flex: 1;
+        }
+
+        .feed-title {
+            font-weight: 600;
             color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .feed-url {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            word-break: break-all;
         }
 
         .feed-item button {
@@ -928,15 +942,16 @@
             const startIndex = (currentPage - 1) * itemsPerPage;
             const endIndex = Math.min(startIndex + itemsPerPage, totalFeeds.length);
 
-            if (totalFeeds.length === 0) {
-                feedList.innerHTML = '<div class="feed-item">暂无订阅源</div>';
-                return;
-            }
-
             const currentFeeds = totalFeeds.slice(startIndex, endIndex);
             feedList.innerHTML = currentFeeds.map(feed => `
                 <div class="feed-item">
-                    <span class="feed-url">${feed.url}</span>
+                    <div class="feed-info">
+                        <img src="${feed.favicon}" alt="${feed.title}" class="feed-favicon" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCA5TDEzLjA5IDE1Ljc0TDEyIDIyTDEwLjkxIDE1Ljc0TDQgOUwxMC45MSA4LjI2TDEyIDJaIiBmaWxsPSIjOTk5Ii8+Cjwvc3ZnPgo='">
+                        <div class="feed-details">
+                            <div class="feed-title">${feed.title}</div>
+                            <div class="feed-url">${feed.url}</div>
+                        </div>
+                    </div>
                     <button class="danger" onclick="deleteFeed('${encodeURIComponent(feed.url)}')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
