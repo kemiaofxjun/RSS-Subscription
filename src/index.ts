@@ -145,45 +145,7 @@ app.post('/api/cron/test', authMiddleware, async (c) => {
 
 // ====== 定时抓取相关 ======
 const LAST_FETCH_TIME_KEY = 'rss_last_fetch_time';
-const DEFAULT_FETCH_INTERVAL = 30; // 30分钟间隔
-
-// 定时抓取所有订阅源并存储到R2
-async function refreshAllFeeds(env: HonoEnv['Bindings']) {
-    const feeds: RSSFeed[] = await env.RSS_FEEDS.get('feeds', 'json') || [];
-    const items: RSSItem[] = [];
-    
-    console.log(`Refreshing ${feeds.length} feeds`);
-    
-    for (const feed of feeds) {
-        try {
-            const response = await fetch(feed.url);
-            if (!response.ok) {
-                console.error(`Failed to fetch ${feed.url}: ${response.status}`);
-                continue;
-            }
-            const text = await response.text();
-            const feedContent = await parser.parseString(text);
-            for (const item of feedContent.items) {
-                const content = (item.summary || item.description || item['content:encoded'] || item.contentSnippet || item.content || '').trim();
-                items.push({
-                    title: item.title || '',
-                    author: item.creator || feedContent.title || '',
-                    date: item.pubDate || item.isoDate || '',
-                    link: item.link || '',
-                    content: sanitizeContent(content),
-                });
-            }
-        } catch (e) { 
-            console.error(`Error parsing feed ${feed.url}:`, e);
-        }
-    }
-    
-    items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    if (items.length > 0) {
-        await env.RSS_BUCKET.put('rss.json', JSON.stringify(items));
-        console.log(`Stored ${items.length} RSS items to R2`);
-    }
-}
+// const DEFAULT_FETCH_INTERVAL = 30; // 30分钟间隔
 
 // GitHub OAuth 路由
 app.get('/auth/github', (c) => {
@@ -372,23 +334,60 @@ app.post('/api/rss/refresh', authMiddleware, async (c) => {
     }
 });
 
+// 抓取所有订阅源并存储到R2
+async function refreshAllFeeds(env: HonoEnv['Bindings']) {
+    const feeds: RSSFeed[] = await env.RSS_FEEDS.get('feeds', 'json') || [];
+    const items: RSSItem[] = [];
+    
+    console.log(`Refreshing ${feeds.length} feeds`);
+    
+    for (const feed of feeds) {
+        try {
+            const response = await fetch(feed.url);
+            if (!response.ok) {
+                console.error(`Failed to fetch ${feed.url}: ${response.status}`);
+                continue;
+            }
+            const text = await response.text();
+            const feedContent = await parser.parseString(text);
+            for (const item of feedContent.items) {
+                const content = (item.summary || item.description || item['content:encoded'] || item.contentSnippet || item.content || '').trim();
+                items.push({
+                    title: item.title || '',
+                    author: item.creator || feedContent.title || '',
+                    date: item.pubDate || item.isoDate || '',
+                    link: item.link || '',
+                    content: sanitizeContent(content),
+                });
+            }
+        } catch (e) { 
+            console.error(`Error parsing feed ${feed.url}:`, e);
+        }
+    }
+    
+    items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    if (items.length > 0) {
+        await env.RSS_BUCKET.put('rss.json', JSON.stringify(items));
+        console.log(`Stored ${items.length} RSS items to R2`);
+    }
+}
+
 // 导出：
 export default {
   fetch: app.fetch,
   scheduled: async (event: ScheduledEvent, env: HonoEnv['Bindings'], ctx: ExecutionContext) => {
-    const lastFetchStr = await env.RSS_FEEDS.get(LAST_FETCH_TIME_KEY);
-    const lastFetch = parseInt(lastFetchStr || '0', 10);
-    const now = Date.now();
+    console.log("Cron triggered");
     
-    console.log(`Cron triggered. Last fetch: ${lastFetch}, Now: ${now}`);
-    
-    if (now - lastFetch >= DEFAULT_FETCH_INTERVAL * 60 * 1000) {
-      console.log('Executing RSS refresh...');
+    try {
+      // 直接调用 refreshAllFeeds 函数
       await refreshAllFeeds(env);
-      await env.RSS_FEEDS.put(LAST_FETCH_TIME_KEY, now.toString());
-      console.log('RSS refresh completed');
-    } else {
-      console.log('Skipping refresh - not enough time passed');
+      
+      // 更新最后执行时间
+      await env.RSS_FEEDS.put(LAST_FETCH_TIME_KEY, Date.now().toString());
+      
+      console.log('RSS refresh completed successfully');
+    } catch (error) {
+      console.error('RSS refresh failed:', error);
     }
   }
 };
