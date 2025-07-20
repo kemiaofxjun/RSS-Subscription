@@ -29,16 +29,9 @@
 
 ## 📦 部署
 
-1. 克隆仓库
-```bash
-git clone https://github.com/HeLongaa/rss-cloudflare.git
-cd rss-cloudflare
-```
+1. Fork 本仓库
 
-2. 安装依赖
-```bash
-npm install
-```
+2. 在Cloudflare新建Workers
 
 3. 配置环境变量
 ```env
@@ -48,10 +41,11 @@ ALLOWED_GITHUB_USERS=user1,user2
 APP_URL=your_app_url
 ```
 
-4. 部署到 Cloudflare Workers
-```bash
-npm run deploy
-```
+4. 配置绑定
+
+![alt text](image.png)
+
+5. 配置定时任务
 
 ## 🔧 配置说明
 
