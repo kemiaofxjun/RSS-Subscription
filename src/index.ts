@@ -145,25 +145,7 @@ app.post('/api/cron/test', authMiddleware, async (c) => {
 
 // ====== 定时抓取相关 ======
 const LAST_FETCH_TIME_KEY = 'rss_last_fetch_time';
-const DEFAULT_FETCH_INTERVAL = 30; // 30分钟间隔，与 cron 配置保持一致
-
-// 定时任务入口（Cloudflare Worker Cron）
-export async function scheduled(event: ScheduledEvent, env: HonoEnv['Bindings'], ctx: ExecutionContext) {
-    const lastFetchStr = await env.RSS_FEEDS.get(LAST_FETCH_TIME_KEY);
-    const lastFetch = parseInt(lastFetchStr || '0', 10);
-    const now = Date.now();
-    
-    console.log(`Cron triggered. Last fetch: ${lastFetch}, Now: ${now}`);
-    
-    if (now - lastFetch >= DEFAULT_FETCH_INTERVAL * 60 * 1000) {
-        console.log('Executing RSS refresh...');
-        await refreshAllFeeds(env);
-        await env.RSS_FEEDS.put(LAST_FETCH_TIME_KEY, now.toString());
-        console.log('RSS refresh completed');
-    } else {
-        console.log('Skipping refresh - not enough time passed');
-    }
-}
+const DEFAULT_FETCH_INTERVAL = 30; // 30分钟间隔
 
 // 定时抓取所有订阅源并存储到R2
 async function refreshAllFeeds(env: HonoEnv['Bindings']) {
@@ -390,7 +372,7 @@ app.post('/api/rss/refresh', authMiddleware, async (c) => {
     }
 });
 
-// ES Module 默认导出
+// 导出：
 export default {
   fetch: app.fetch,
   scheduled: async (event: ScheduledEvent, env: HonoEnv['Bindings'], ctx: ExecutionContext) => {
