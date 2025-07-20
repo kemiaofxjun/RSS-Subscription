@@ -1,0 +1,9 @@
+{
+  "name": "rss-cloudflare",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-07-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public"
+  }
+}
