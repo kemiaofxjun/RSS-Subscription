@@ -203,5 +203,192 @@ async function refreshAllFeeds(env: HonoEnv['Bindings']) {
     }
 }
 
+// GitHub OAuth 路由
+app.get('/auth/github', (c) => {
+    const clientId = c.env.GITHUB_CLIENT_ID;
+    const redirectUri = `${c.env.APP_URL}/auth/github/callback`;
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user:email`;
+    return c.redirect(githubAuthUrl);
+});
+
+app.get('/auth/github/callback', async (c) => {
+    const code = c.req.query('code');
+    if (!code) {
+        return c.redirect('/login?error=auth_failed&reason=no_code');
+    }
+
+    try {
+        const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                client_id: c.env.GITHUB_CLIENT_ID,
+                client_secret: c.env.GITHUB_CLIENT_SECRET,
+                code: code,
+            }),
+        });
+
+        const tokenData: GitHubTokenResponse = await tokenResponse.json();
+        
+        if (!tokenData.access_token) {
+            return c.redirect('/login?error=auth_failed&reason=no_token');
+        }
+
+        const userResponse = await fetch('https://api.github.com/user', {
+            headers: {
+                'Authorization': `Bearer ${tokenData.access_token}`,
+                'User-Agent': 'RSS-Service'
+            }
+        });
+
+        const user: GitHubUser = await userResponse.json();
+        const allowedUsers = c.env.ALLOWED_GITHUB_USERS.split(',');
+
+        if (!allowedUsers.includes(user.login)) {
+            return c.redirect('/login?error=unauthorized');
+        }
+
+        const response = c.redirect('/');
+        response.headers.set('Set-Cookie', `github_token=${tokenData.access_token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`);
+        return response;
+    } catch (error) {
+        console.error('OAuth callback error:', error);
+        return c.redirect('/login?error=auth_failed&reason=server_error');
+    }
+});
+
+// 获取用户信息
+app.get('/api/user', async (c) => {
+    try {
+        const token = c.req.cookie('github_token');
+        if (!token) {
+            return c.json({ error: 'Not authenticated' }, 401);
+        }
+
+        const userResponse = await fetch('https://api.github.com/user', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'User-Agent': 'RSS-Service'
+            }
+        });
+
+        if (!userResponse.ok) {
+            return c.json({ error: 'Invalid token' }, 401);
+        }
+
+        const user: GitHubUser = await userResponse.json();
+        return c.json(user);
+    } catch (error) {
+        return c.json({ error: 'Failed to get user info' }, 500);
+    }
+});
+
+// 获取订阅源列表
+app.get('/api/feeds', authMiddleware, async (c) => {
+    try {
+        const feeds: RSSFeed[] = await c.env.RSS_FEEDS.get('feeds', 'json') || [];
+        return c.json(feeds);
+    } catch (error) {
+        return c.json({ error: 'Failed to load feeds' }, 500);
+    }
+});
+
+// 添加订阅源
+app.post('/api/feeds', authMiddleware, async (c) => {
+    try {
+        const { url } = await c.req.json();
+        if (!url) {
+            return c.json({ error: 'URL is required' }, 400);
+        }
+
+        const feeds: RSSFeed[] = await c.env.RSS_FEEDS.get('feeds', 'json') || [];
+        
+        if (feeds.some(feed => feed.url === url)) {
+            return c.json({ error: 'Feed already exists' }, 400);
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            return c.json({ error: 'Invalid RSS URL' }, 400);
+        }
+
+        const text = await response.text();
+        const feedContent = await parser.parseString(text);
+        
+        const newFeed: RSSFeed = {
+            url,
+            title: feedContent.title || 'Unknown Feed',
+            favicon: `${c.env.IMG_PROXY_URL}/${new URL(url).hostname}`,
+            addedBy: 'user',
+            addedAt: new Date().toISOString()
+        };
+
+        feeds.push(newFeed);
+        await c.env.RSS_FEEDS.put('feeds', JSON.stringify(feeds));
+        
+        return c.json({ success: true });
+    } catch (error) {
+        return c.json({ error: 'Failed to add feed' }, 500);
+    }
+});
+
+// 删除订阅源
+app.delete('/api/feeds/:url', authMiddleware, async (c) => {
+    try {
+        const encodedUrl = c.req.param('url');
+        const url = decodeURIComponent(encodedUrl);
+        
+        const feeds: RSSFeed[] = await c.env.RSS_FEEDS.get('feeds', 'json') || [];
+        const filteredFeeds = feeds.filter(feed => feed.url !== url);
+        
+        if (filteredFeeds.length === feeds.length) {
+            return c.json({ error: 'Feed not found' }, 404);
+        }
+
+        await c.env.RSS_FEEDS.put('feeds', JSON.stringify(filteredFeeds));
+        return c.json({ success: true });
+    } catch (error) {
+        return c.json({ error: 'Failed to delete feed' }, 500);
+    }
+});
+
+// 获取RSS内容（公开API）
+app.get('/api/rss/public', async (c) => {
+    try {
+        const rssData = await c.env.RSS_BUCKET.get('rss.json');
+        if (!rssData) {
+            return c.json([]);
+        }
+        
+        const items: RSSItem[] = JSON.parse(await rssData.text());
+        const author = c.req.query('author');
+        
+        if (author) {
+            const filteredItems = items.filter(item => 
+                item.author.toLowerCase().includes(author.toLowerCase())
+            );
+            return c.json(filteredItems);
+        }
+        
+        return c.json(items);
+    } catch (error) {
+        console.error('Failed to load RSS content:', error);
+        return c.json({ error: 'Failed to load RSS content' }, 500);
+    }
+});
+
+// 刷新RSS内容
+app.post('/api/rss/refresh', authMiddleware, async (c) => {
+    try {
+        await refreshAllFeeds(c.env);
+        return c.json({ success: true, message: 'RSS content refreshed' });
+    } catch (error) {
+        return c.json({ error: 'Failed to refresh RSS content' }, 500);
+    }
+});
+
 // ES Module 默认导出
 export default app;
