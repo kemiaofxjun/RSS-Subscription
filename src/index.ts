@@ -145,7 +145,7 @@ app.post('/api/cron/test', authMiddleware, async (c) => {
 
 // ====== 定时抓取相关 ======
 const LAST_FETCH_TIME_KEY = 'rss_last_fetch_time';
-const DEFAULT_FETCH_INTERVAL = 30; // 固定30分钟间隔
+const DEFAULT_FETCH_INTERVAL = 30; // 30分钟间隔，与 cron 配置保持一致
 
 // 定时任务入口（Cloudflare Worker Cron）
 export async function scheduled(event: ScheduledEvent, env: HonoEnv['Bindings'], ctx: ExecutionContext) {
