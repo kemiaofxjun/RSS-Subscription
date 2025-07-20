@@ -391,4 +391,22 @@ app.post('/api/rss/refresh', authMiddleware, async (c) => {
 });
 
 // ES Module 默认导出
-export default app;
+export default {
+  fetch: app.fetch,
+  scheduled: async (event: ScheduledEvent, env: HonoEnv['Bindings'], ctx: ExecutionContext) => {
+    const lastFetchStr = await env.RSS_FEEDS.get(LAST_FETCH_TIME_KEY);
+    const lastFetch = parseInt(lastFetchStr || '0', 10);
+    const now = Date.now();
+    
+    console.log(`Cron triggered. Last fetch: ${lastFetch}, Now: ${now}`);
+    
+    if (now - lastFetch >= DEFAULT_FETCH_INTERVAL * 60 * 1000) {
+      console.log('Executing RSS refresh...');
+      await refreshAllFeeds(env);
+      await env.RSS_FEEDS.put(LAST_FETCH_TIME_KEY, now.toString());
+      console.log('RSS refresh completed');
+    } else {
+      console.log('Skipping refresh - not enough time passed');
+    }
+  }
+};
