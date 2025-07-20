@@ -5,5 +5,15 @@
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./public"
+  },
+  "kv_namespaces": [
+    { "binding": "RSS_FEEDS", "id": "5c8dc376e28e4dd7ad81a4bb4e996833" },
+    { "binding": "__STATIC_CONTENT", "id": "9723c7918d83427a979aaacae1c64504" }
+  ],
+  "r2_buckets": [
+    { "binding": "RSS_BUCKET", "bucket_name": "rss-data" }
+  ],
+  "triggers": {
+    "crons": ["*/30 * * * *"]
   }
 }
