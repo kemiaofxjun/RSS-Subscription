@@ -6,8 +6,8 @@ import { RSSFeed, RSSItem, HonoEnv, AppContext, GitHubUser, GitHubTokenResponse,
 const app = new Hono<HonoEnv>();
 
 // 添加CORS中间件
-app.use('*'， cors({
-    origin: ['https://rs.20050815.xyz'],
+app.use('*', cors({
+    origin: ['https://rss.20050815.xyz'],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'Cookie'],
     exposeHeaders: ['Content-Length', 'Set-Cookie'],
@@ -20,10 +20,10 @@ const parser = new Parser();
 // 内容清理函数
 function sanitizeContent(content: string): string {
     return content
-        。replace(/<[^>]*>/g, '')
-        。replace(/&[^;]+;/g, ' ')
-        。trim()
-        。slice(0, 100);
+        .replace(/<[^>]*>/g, '')
+        .replace(/&[^;]+;/g, ' ')
+        .trim()
+        .slice(0, 100);
 }
 
 // 认证中间件
