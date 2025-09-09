@@ -6,7 +6,7 @@ import { RSSFeed, RSSItem, HonoEnv, AppContext, GitHubUser, GitHubTokenResponse,
 const app = new Hono<HonoEnv>();
 
 // 添加CORS中间件
-app。use('*'， cors({
+app.use('*'， cors({
     origin: ['https://rs.20050815.xyz'],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'Cookie'],
