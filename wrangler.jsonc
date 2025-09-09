@@ -1,17 +1,17 @@
 {
-  "name": "rss-cloudflare",
+  "name": "rss-subscription",
   "main": "src/index.ts",
-  "compatibility_date": "2025-07-20",
+  "compatibility_date": "2025-09-09",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./public"
   },
   "kv_namespaces": [
-    { "binding": "RSS_FEEDS", "id": "5c8dc376e28e4dd7ad81a4bb4e996833" },
-    { "binding": "__STATIC_CONTENT", "id": "9723c7918d83427a979aaacae1c64504" }
+    { "binding": "RSS_FEEDS", "id": "a57a8466d904430db4ee1aee3f8b32d6" },
+    { "binding": "__STATIC_CONTENT", "id": "592634373f1f4c49b115da9facb6d060" }
   ],
   "r2_buckets": [
-    { "binding": "RSS_BUCKET", "bucket_name": "rss-data" }
+    { "binding": "RSS_BUCKET", "bucket_name": "rss" }
   ],
   "triggers": {
     "crons": ["0 */2 * * *"]
